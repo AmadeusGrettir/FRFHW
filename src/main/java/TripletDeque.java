@@ -10,9 +10,6 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
         public DequeContainer() {
             this.container = new Object[5];
         }
-        public Object[] getContainer() {
-            return this.container;
-        }
 
         public DequeContainer getRightCont() {
             return rightCont;
@@ -31,47 +28,65 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
 
     private DequeContainer firstCont = new DequeContainer();
 
-    private int head = 0;
     private int tail = 0;
+    private int tailCont = 0;
 
-    private int currentCont = 0;
-
-    public void addContainer() {
-        // Добавление нового контейнера
-        DequeContainer lastCont = getCont(tail-1);
+    private void addContainer() {
+        DequeContainer element = firstCont;
+        for (int i = 0; i < tailCont; i++) {
+            element = element.getRightCont();
+        }
+        DequeContainer lastCont = element;
 
         if (lastCont != null) {
             DequeContainer newCont = new DequeContainer();
             newCont.setLeftCont(lastCont);
             lastCont.setRightCont(newCont);
-            currentCont++;
+            tailCont++;
         } else {
             firstCont = new DequeContainer();
         }
     }
 
-    public void deleteContainer() {
-        // Удаление пустого
-        DequeContainer lastCont = getCont(tail-1);
+    private void deleteContainer() {
+        DequeContainer element = firstCont;
+        for (int i = 0; i < tailCont; i++) {
+            element = element.getRightCont();
+        }
+        DequeContainer lastCont = element;
         lastCont.setRightCont(null);
-        currentCont--;
+        tailCont--;
     }
 
-    public DequeContainer getCont(int index) {
-        if (index > ((currentCont+1)*5)) {
+
+    private E getElement(int index) {
+        if (index > ((tailCont + 1)*5)) {
             throw new IndexOutOfBoundsException();
         } else {
             DequeContainer element = firstCont;
             for (int i = 0; i < index/5; i++) {
                 element = element.getRightCont();
             }
-            return element;
+            return (E) element.container[index - (index/5) * 5];
         }
     }
 
+    private void setElement(int index, E e) {
+        if (index > ((tailCont + 1)*5)) {
+            throw new IndexOutOfBoundsException();
+        } else {
+            DequeContainer element = firstCont;
+            for (int i = 0; i < index/5; i++) {
+                element = element.getRightCont();
+            }
+            element.container[index - (index/5) * 5] = e;
+        }
+    }
+
+
     @Override
     public Object[] getContainerByIndex(int cIndex) {
-        if (cIndex > currentCont) {
+        if (cIndex > tailCont) {
             return null;
         } else {
             DequeContainer element = firstCont;
@@ -99,15 +114,14 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
         if (e == null)
             throw new NullPointerException();
 
-        if (firstCont.container[0]==null){
-            firstCont.container[0] = e;
-        } else  {
+        if (getElement(0) != null){
             tail++;
+
             if (tail%5 == 0 && tail!=0){
                 addContainer();
             }
-            getCont(tail).container[tail-currentCont*5] = e;
         }
+        setElement(tail, e);
     }
 
     /**
@@ -126,18 +140,16 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
         if (e == null)
             throw new NullPointerException();
 
-        if (firstCont.container[0]==null){
-            firstCont.container[0] = e;
-        } else {
+        if (getElement(0) != null){
             tail++;
             if (tail%5 == 0 && tail!=0) {
                 addContainer();
             }
             for (int i = tail; i > 0; i--) {
-                getCont(i).container[i-(i/5)*5] = getCont(i-1).container[((i-1))-(((i-1))/5)*5];
+                setElement(i, getElement(i-1));
             }
-            firstCont.container[0] = e;
         }
+        setElement(0, e);
     }
 
 
@@ -217,23 +229,23 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
      */
     @Override
     public E pollFirst() {
-        E e = (E) firstCont.container[0];
+
+        E e = getElement(0);
         if (e != null) {
-            firstCont.container[0] = null;
+            setElement(0, null);
         }
 
         for (int i = 0; i < tail; i++) {
-            getCont(i).container[i-(i/5)*5] = getCont(i+1).container[i+1-(i+1)/5*5];
+            setElement(i, getElement(i+1));
         }
-        getCont(tail).container[tail-(tail/5)*5] = null;
+        setElement(tail, null);
 
         if (tail%5 == 0 && tail!=0) {
             deleteContainer();
         }
-        if (tail == 0) tail++;
-        tail--;
-        return e;
+        if (tail != 0) tail--;
 
+        return e;
     }
 
     /**
@@ -244,16 +256,17 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
      */
     @Override
     public E pollLast() {
-        E e = (E) getCont(tail).container[tail-currentCont*5];
+        E e = getElement(tail);
         if (e != null) {
-            getCont(tail).container[tail-currentCont*5] = null;
+            setElement(tail, null);
         }
 
         if (tail%5 == 0 && tail!=0) {
             deleteContainer();
         }
-        if (tail == 0) tail++;
-        tail--;
+        if (tail != 0) {
+            tail--;
+        }
         return e;
     }
 
@@ -268,7 +281,7 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
      */
     @Override
     public E getFirst() {
-        E e = (E) firstCont.container[0];
+        E e = getElement(0);
         if (e == null)
             throw new NoSuchElementException();
         return e;
@@ -284,7 +297,7 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
      */
     @Override
     public E getLast() {
-        E e = (E) getCont(tail).container[tail-currentCont*5];
+        E e = getElement(tail);
         if (e == null)
             throw new NoSuchElementException();
         return e;
@@ -298,7 +311,7 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
      */
     @Override
     public E peekFirst() {
-        return (E) firstCont.container[0];
+        return getElement(0);
     }
 
     /**
@@ -309,7 +322,7 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
      */
     @Override
     public E peekLast() {
-        return (E) getCont(tail).container[tail-currentCont*5];
+        return getElement(tail);
     }
 
     /**
@@ -333,18 +346,18 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
     public boolean removeFirstOccurrence(Object o) {
         if (o != null) {
             for (int i = 0; i < tail; i++) {
-                if (o.equals(getCont(i).container[i-(i/5)*5])) {
-                    getCont(i).container[i-(i/5)*5] = null;
+                if (o.equals(getElement(i))) {
+                    setElement(i, null);
 
                     for (int j = i; j < tail; j++) {
-                        getCont(j).container[j-(j/5)*5] = getCont(j+1).container[((j+1))-(((j+1))/5)*5];
+                        setElement(j, getElement(j+1));
                     }
-                    getCont(tail).container[((tail))-(((tail))/5)*5] = null;
+                    setElement(tail, null);
 
                     if (tail%5 == 0 && tail!=0) {
                         deleteContainer();
                     }
-                    tail--;
+                    if (tail != 0) tail--;
                     return true;
                 }
             }
@@ -374,20 +387,20 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
         if (o != null) {
             int last = 0;
             for (int i = 0; i < tail; i++) {
-                if (o.equals(getCont(i).container[i-(i/5)*5])){
+                if (o.equals(getElement(i))){
                     last = i;
                 }
             }
-            getCont(last).container[last-(last/5)*5] = null;
+            setElement(last, null);
             for (int j = last; j < tail; j++) {
-                 getCont(j).container[j-(j/5)*5] = getCont(j+1).container[((j+1))-(((j+1))/5)*5];
+                setElement(j, getElement(j+1));
             }
-            getCont(tail).container[((tail))-(((tail))/5)*5] = null;
+            setElement(tail, null);
 
             if (tail%5 == 0 && tail!=0) {
                 deleteContainer();
             }
-            tail--;
+            if (tail != 0) tail--;
             return true;
         }
         return false;
@@ -635,7 +648,7 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
     public boolean contains(Object o) {
         if (o != null) {
             for (int i = 0; i < tail; i++) {
-                if (o.equals(getCont(i).container[i-(i/5)*5])) return true;
+                if (o.equals(getElement(i))) return true;
             }
         }
         return false;
@@ -689,7 +702,7 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
          */
         int lastRet = -1;
 
-        DeqIterator() { cursor = head; }
+        DeqIterator() { cursor = 0; }
 
         public final boolean hasNext() {
             return remaining > 0;
@@ -699,7 +712,7 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
             if (remaining <= 0)
                 throw new NoSuchElementException();
 
-            E e = (E) getCont(cursor).container[cursor-(cursor/5)*5];
+            E e = getElement(cursor);
             cursor ++;
             remaining--;
             return e;
@@ -723,10 +736,10 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
             if ((r = remaining) <= 0)
                 return;
             remaining = 0;
-            if (getCont(cursor).container[cursor-(cursor/5)*5] == null || tail-cursor != r)
+            if (getElement(cursor) == null || tail-cursor != r)
                 throw new ConcurrentModificationException();
             for (int i = cursor; i < tail; i++) {
-                action.accept((E) getCont(i).container[i-(i/5)*5]);
+                action.accept(getElement(i));
             }
         }
     }
@@ -742,139 +755,32 @@ public class TripletDeque<E> implements Deque<E>, Containerable {
     @Override
     public Iterator<E> descendingIterator() {
         throw new UnsupportedOperationException();
-
     }
 
 
-    //методы, не подлежащие реализации по заданию//
+    //methods that aren't mentioned in the task//
 
-    /**
-     * Removes all of this collection's elements that are also contained in the
-     * specified collection (optional operation).  After this call returns,
-     * this collection will contain no elements in common with the specified
-     * collection.
-     *
-     * @param c collection containing elements to be removed from this collection
-     * @return {@code true} if this collection changed as a result of the
-     * call
-     * @throws UnsupportedOperationException if the {@code removeAll} method
-     *                                       is not supported by this collection
-     * @throws ClassCastException            if the types of one or more elements
-     *                                       in this collection are incompatible with the specified
-     *                                       collection
-     *                                       (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
-     * @throws NullPointerException          if this collection contains one or more
-     *                                       null elements and the specified collection does not support
-     *                                       null elements
-     *                                       (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>),
-     *                                       or if the specified collection is null
-     * @see #remove(Object)
-     * @see #contains(Object)
-     */
     @Override
     public boolean removeAll(Collection<?> c) {
-        return false;
+        throw new UnsupportedOperationException();
     }
 
-    /**
-     * Returns {@code true} if this collection contains all of the elements
-     * in the specified collection.
-     *
-     * @param c collection to be checked for containment in this collection
-     * @return {@code true} if this collection contains all of the elements
-     * in the specified collection
-     * @throws ClassCastException   if the types of one or more elements
-     *                              in the specified collection are incompatible with this
-     *                              collection
-     *                              (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
-     * @throws NullPointerException if the specified collection contains one
-     *                              or more null elements and this collection does not permit null
-     *                              elements
-     *                              (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>),
-     *                              or if the specified collection is null.
-     * @see #contains(Object)
-     */
+
     @Override
     public boolean containsAll(Collection<?> c) {
-        return false;
+        throw new UnsupportedOperationException();
     }
 
-    /**
-     * Returns an array containing all of the elements in this collection.
-     * If this collection makes any guarantees as to what order its elements
-     * are returned by its iterator, this method must return the elements in
-     * the same order. The returned array's {@linkplain Class#getComponentType
-     * runtime component type} is {@code Object}.
-     *
-     * <p>The returned array will be "safe" in that no references to it are
-     * maintained by this collection.  (In other words, this method must
-     * allocate a new array even if this collection is backed by an array).
-     * The caller is thus free to modify the returned array.
-     *
-     * @return an array, whose {@linkplain Class#getComponentType runtime component
-     * type} is {@code Object}, containing all of the elements in this collection
-     * @apiNote This method acts as a bridge between array-based and collection-based APIs.
-     * It returns an array whose runtime type is {@code Object[]}.
-     * Use {@link #toArray(Object[]) toArray(T[])} to reuse an existing
-     * array, or use {@link //#toArray(IntFunction)} to control the runtime type
-     * of the array.
-     */
+
     @Override
     public Object[] toArray() {
-        return new Object[0];
+        throw new UnsupportedOperationException();
     }
 
-    /**
-     * Returns an array containing all of the elements in this collection;
-     * the runtime type of the returned array is that of the specified array.
-     * If the collection fits in the specified array, it is returned therein.
-     * Otherwise, a new array is allocated with the runtime type of the
-     * specified array and the size of this collection.
-     *
-     * <p>If this collection fits in the specified array with room to spare
-     * (i.e., the array has more elements than this collection), the element
-     * in the array immediately following the end of the collection is set to
-     * {@code null}.  (This is useful in determining the length of this
-     * collection <i>only</i> if the caller knows that this collection does
-     * not contain any {@code null} elements.)
-     *
-     * <p>If this collection makes any guarantees as to what order its elements
-     * are returned by its iterator, this method must return the elements in
-     * the same order.
-     *
-     * @param a the array into which the elements of this collection are to be
-     *          stored, if it is big enough; otherwise, a new array of the same
-     *          runtime type is allocated for this purpose.
-     * @return an array containing all of the elements in this collection
-     * @throws ArrayStoreException  if the runtime type of any element in this
-     *                              collection is not assignable to the {@linkplain Class#getComponentType
-     *                              runtime component type} of the specified array
-     * @throws NullPointerException if the specified array is null
-     * @apiNote This method acts as a bridge between array-based and collection-based APIs.
-     * It allows an existing array to be reused under certain circumstances.
-     * Use {@link #toArray()} to create an array whose runtime type is {@code Object[]},
-     * or use {@link //#toArray(IntFunction)} to control the runtime type of
-     * the array.
-     *
-     * <p>Suppose {@code x} is a collection known to contain only strings.
-     * The following code can be used to dump the collection into a previously
-     * allocated {@code String} array:
-     *
-     * <pre>
-     *     String[] y = new String[SIZE];
-     *     ...
-     *     y = x.toArray(y);</pre>
-     *
-     * <p>The return value is reassigned to the variable {@code y}, because a
-     * new array will be allocated and returned if the collection {@code x} has
-     * too many elements to fit into the existing array {@code y}.
-     *
-     * <p>Note that {@code toArray(new Object[0])} is identical in function to
-     * {@code toArray()}.
-     */
+
     @Override
     public <T> T[] toArray(T[] a) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
 }
